@@ -39,7 +39,7 @@ context "Resque::Worker" do
   end
 
   class ::SimpleJobWithFailureHandling
-    def self.on_failure_record_failure(exception, args)
+    def self.on_failure_record_failure(exception, *job_args)
       @@exception = exception
     end
     
