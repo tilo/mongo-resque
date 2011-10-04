@@ -108,6 +108,7 @@ module Resque
 
         if not paused? and job = reserve
           log "got: #{job.inspect}"
+          job.worker = self
           run_hook :before_fork, job
           working_on job
 
@@ -140,6 +141,7 @@ module Resque
     def process(job = nil, &block)
       return unless job ||= reserve
 
+      job.worker = self
       working_on job
       perform(job, &block)
     ensure
@@ -366,7 +368,6 @@ module Resque
     # Given a job, tells Mongo we're working on it. Useful for seeing
     # what workers are doing and when.
     def working_on(job)
-      job.worker = self
       data = { :queue   => job.queue,
                :run_at  => Time.now.strftime("%Y/%m/%d %H:%M:%S %Z"),
                :payload => job.payload }
