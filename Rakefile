@@ -72,7 +72,7 @@ task :publish do
   sh "gem build mongo-resque.gemspec"
   sh "gem push mongo-resque-#{Resque::Version}.gem"
   sh "git tag mongo-v#{Resque::Version}"
-  sh "git push origin v#{Resque::Version}"
+  sh "git push origin mongo-v#{Resque::Version}"
   sh "git push origin master"
   sh "rm mongo-resque*.gem"
 end
