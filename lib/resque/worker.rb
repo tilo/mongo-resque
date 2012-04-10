@@ -24,13 +24,13 @@ module Resque
 
     # Returns an array of all worker objects.
     def self.all
-      mongo_workers.distinct(:worker).map{|worker| find(worker)}.compact
+      mongo_workers.distinct(:worker).map { |worker| find(worker) }.compact
     end
 
     # Returns an array of all worker objects currently processing
     # jobs.
     def self.working
-      working = mongo_workers.find({ 'working_on' => { '$exists' => true}}).to_a.map{|w| find(w['worker'])}
+      mongo_workers.find('working_on' => { '$exists' => true }).to_a.map { |w| find(w['worker']) }
     end
 
     # Returns a single worker object. Accepts a string id.
@@ -53,7 +53,7 @@ module Resque
     # Given a string worker id, return a boolean indicating whether the
     # worker exists
     def self.exists?(worker_id)
-      mongo_workers.find({ :worker => worker_id.to_s}).count > 0
+      mongo_workers.find(:worker => worker_id.to_s).count > 0
     end
 
     # Workers should be initialized with an array of string queue
