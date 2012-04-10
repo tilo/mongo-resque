@@ -1,3 +1,21 @@
+## 1.20.0 (2012-04-10)
+
+* Fixed demos for ruby 1.9 (@BMorearty, #445)
+* Web UI: optional trailing slashes of URLs (@elisehuard, #449)
+* Allow * to appear anywhere in queue list (@tapajos, #405, #407)
+* Wait for child with specific PID (@jacobkg)
+* #decode raise takes a string when re-raising as a different exception class (Trevor Hart)
+* Use Sinatra's `public_folder` if it exists (@defunkt, #420, #421)
+* Assign the job's worker before calling `before_fork` (@quirkey)
+* Fix Resque::Helpers#constantize to work correctly on 1.9.2 (@rtlong)
+* Added before & after hooks for dequeue (@humancopy, #398)
+* daemonize support using `ENV["BACKGROUND"]` (@chrisleishman)
+* Added `Resque.enqueue_to`: allows you to specif the queue and still run hooks (@dan-g)
+* Web UI: Set the default encoding to UTF-8 (@elubow)
+* fix finding worker pids on JRuby (John Andrews + Andrew Grieser)
+* Added better failure hooks (@raykrueger)
+* Added before & after dequeue hooks (@humancopy)
+
 ## 1.19.1 (2011-10-07)
 
 * Change mongo gem dependency to include all 1.x versions from 1.3
