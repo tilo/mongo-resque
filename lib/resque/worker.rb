@@ -24,7 +24,7 @@ module Resque
 
     # Returns an array of all worker objects.
     def self.all
-      mongo_workers.distinct(:worker).map { |worker| find(worker) }.compact
+      mongo_workers.find.distinct(:worker).map { |worker| find(worker) }.compact
     end
 
     # Returns an array of all worker objects currently processing
@@ -53,7 +53,7 @@ module Resque
     # Given a string worker id, return a boolean indicating whether the
     # worker exists
     def self.exists?(worker_id)
-      mongo_workers.find(:worker => worker_id.to_s).count > 0
+      mongo_workers.find(worker: worker_id.to_s).count > 0
     end
 
     # Workers should be initialized with an array of string queue
@@ -333,7 +333,7 @@ module Resque
     # Registers ourself as a worker. Useful when entering the worker
     # lifecycle on startup.
     def register_worker
-      mongo_workers << { :worker => self.to_s}
+      mongo_workers.insert(worker: self.to_s)
       started!
     end
 
@@ -359,7 +359,7 @@ module Resque
         job.fail(DirtyExit.new)
       end
 
-      mongo_workers.remove :worker => self.to_s
+      mongo_workers.find(worker: self.to_s).remove
 
       Stat.clear("processed:#{self}")
       Stat.clear("failed:#{self}")
@@ -371,14 +371,14 @@ module Resque
       data = { :queue   => job.queue,
                :run_at  => Time.now.strftime("%Y/%m/%d %H:%M:%S %Z"),
                :payload => job.payload }
-      mongo_workers.update({:worker => self.to_s}, { '$set' => { 'working_on' => data}}, :upsert => true)
+      mongo_workers.find(worker: self.to_s).upsert('$set' => { 'working_on' => data })
     end
 
     # Called when we are done working - clears our `working_on` state
     # and tells Mongo we processed a job.
     def done_working
       processed!
-      mongo_workers.remove({ :worker => self.to_s})
+      mongo_workers.find(worker: self.to_s).remove
     end
 
     # How many jobs has this worker processed? Returns an int.
@@ -405,19 +405,19 @@ module Resque
 
     # What time did this worker start? Returns an instance of `Time`
     def started
-      worker = mongo_workers.find_one(:worker => self.to_s)
+      worker = mongo_workers.find(worker: self.to_s).first
       worker.nil? ? nil : worker['started']
     end
 
     # Tell Mongo we've started
     def started!
-      mongo_workers.update({ :worker => self.to_s}, { '$set' => { :started => Time.now.to_s}})
+      mongo_workers.find(worker: self.to_s).update('$set' => { started: Time.now.to_s })
     end
 
     # Returns a hash explaining the Job we're currently processing, if any.
     def job
-      worker = mongo_workers.find_one :worker => self.to_s
-      worker.nil? ? { } : worker['working_on'] #decode(worker['working_on'])
+      worker = mongo_workers.find(worker: self.to_s).first
+      worker.nil? ? {} : worker['working_on']
     end
     alias_method :processing, :job
 
@@ -434,7 +434,7 @@ module Resque
     # Returns a symbol representing the current worker state,
     # which can be either :working or :idle
     def state
-      mongo_workers.find_one(:worker => self.to_s) ? :working : :idle
+      mongo_workers.find(worker: self.to_s).first ? :working : :idle
     end
 
     # Is this worker the same as another worker?

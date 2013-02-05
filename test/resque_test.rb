@@ -10,12 +10,12 @@ context "Resque" do
   end
 
   test "uses database called resque by default" do
-    assert 'resque', Resque.mongo.name
+    assert 'resque', Resque.mongo[:asdf].database.name
   end
 
   test "can set a database with a Mongo::DB" do
-    Resque.mongo = Mongo::Connection.new.db('resque-test-with-specific-database')
-    assert_equal 'resque-test-with-specific-database', Resque.mongo.name
+    Resque.mongo = Moped::Session.new(["127.0.0.1:27017"]).with(database: 'resque-test-with-specific-database')
+    assert_equal 'resque-test-with-specific-database', Resque.mongo[:asdf].database.name
   end
   
   test "can not set a database with a uri string" do
@@ -206,7 +206,7 @@ context "Resque" do
   end
 
   test "does not confuse normal collections on the same database with queues" do
-    Resque.mongo["some_other_collection"] << {:foo => 'bar'}
+    Resque.mongo["some_other_collection"].insert(foo: 'bar')
     Resque.push(:cars, { 'make' => 'bmw' })
     assert_equal %w( cars people ), Resque.queues.sort
   end
@@ -218,8 +218,8 @@ context "Resque" do
 
   test "can get the collection for a queue" do
     collection = Resque.collection_for_queue(:people)
-    assert_equal Mongo::Collection, collection.class
-    assert_equal 3, collection.count
+    assert_equal Moped::Collection, collection.class
+    assert_equal 3, collection.find.count
   end
 
   test "can delete a queue" do

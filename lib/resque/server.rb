@@ -58,7 +58,7 @@ module Resque
       end
 
       def mongo_get_size(key)
-        Resque.mongo[key].count
+        Resque.mongo[key].find.count
       end
 
       def mongo_get_value_as_array(key, start=0)
@@ -110,8 +110,10 @@ module Resque
       response["Cache-Control"] = "max-age=0, private, must-revalidate"
       begin
         erb page.to_sym, {:layout => layout}, :resque => Resque
-      rescue Mongo::ConnectionError, Mongo::ConnectionFailure
-        erb :error, {:layout => false}, :error => "Can't connect to MongoDB!"
+      rescue Moped::Errors::ConnectionFailure
+        erb :error, {:layout => false}, :error => "Could not connect to mongodb!"
+      rescue Moped::Errors::AuthenticationFailure
+        erb :error, {:layout => false}, :error => "Could not authenticate against mongodb!"
       end
     end
 

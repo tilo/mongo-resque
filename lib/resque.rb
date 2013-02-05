@@ -1,4 +1,4 @@
-require 'mongo'
+require 'moped'
 
 require 'resque/version'
 
@@ -18,13 +18,13 @@ module Resque
   extend self
   @delayed_queues = []
   
-  # Set the queue database. Expects a Mongo::DB object.
+  # Set the queue database. Expects a Moped::Session object with a default database.
   def mongo=(database)
-    if database.is_a?(Mongo::DB)
+    if database.is_a?(Moped::Session)
       @mongo = database
       initialize_mongo
     else
-      raise ArgumentError, "Resque.mongo= expects a Mongo::DB database, not a #{database.class}."
+      raise ArgumentError, "Resque.mongo= expects a Moped::Session, not a #{database.class}."
     end
   end
 
@@ -32,14 +32,14 @@ module Resque
   # create a new one called 'resque'.
   def mongo
     return @mongo if @mongo
-    self.mongo = Mongo::Connection.new.db("resque")
+    self.mongo = Moped::Session.new(["127.0.0.1:27017"]).with(database: "resque")
     @mongo
   end
 
   def initialize_mongo
-    mongo_workers.create_index :worker
-    mongo_stats.create_index :stat
-    delayed_queues = mongo_stats.find_one(:stat => 'Delayed Queues')
+    mongo_workers.indexes.create(worker: 1)
+    mongo_stats.indexes.create(stat: 1)
+    delayed_queues = mongo_stats.find(stat: 'Delayed Queues').first
     @delayed_queues = delayed_queues['value'] if delayed_queues
   end
 
@@ -103,8 +103,9 @@ module Resque
   end
 
   def to_s
-    connection_info = mongo.connection.primary_pool
-    "Resque Client connected to #{connection_info.host}:#{connection_info.port}/#{mongo.name}"
+    mongo.cluster.with_primary do |node|
+      "Resque Client connected to #{node.resolved_address}/#{mongo.options[:database]}"
+    end
   end
 
   def delayed_job?(klass)
@@ -120,7 +121,7 @@ module Resque
     queue = namespace_queue(queue)
     unless delayed_queue? queue
       @delayed_queues << queue
-      mongo_stats.update({:stat => 'Delayed Queues'}, {'$addToSet' => {'value' => queue}}, {:upsert => true})
+      mongo_stats.find(stat: 'Delayed Queues').upsert('$addToSet' => {'value' => queue})
     end
   end
   
@@ -158,7 +159,8 @@ module Resque
   def push(queue, item)
     queue = namespace_queue(queue)
     item[:resque_enqueue_timestamp] = Time.now
-    mongo[queue] << item
+    mongo[queue].insert item
+    item
   end
 
   # Pops a job off a queue. Queue name should be a string.
@@ -168,35 +170,31 @@ module Resque
     queue = namespace_queue(queue)
     query = {}
     query['delay_until'] = { '$lt' => Time.now } if delayed_queue?(queue)
-    #sorting will result in significant performance penalties for large queues, you have been warned.
-    item = mongo[queue].find_and_modify(:query => query, :remove => true, :sort => [[:_id, :asc]])
-  rescue Mongo::OperationFailure => e
-    return nil if e.message =~ /No matching object/
-    raise e
+    mongo[queue].find(query).sort(_id: 1).modify({}, remove: true)
   end
 
   # Returns an integer representing the size of a queue.
   # Queue name should be a string.
   def size(queue)
     queue = namespace_queue(queue)
-    mongo[queue].count
+    mongo[queue].find.count
   end
 
   def delayed_size(queue)
     queue = namespace_queue(queue)
     if delayed_queue? queue
-      mongo[queue].find({'delay_until' => { '$gt' => Time.now }}).count
+      mongo[queue].find(delay_until: { '$gt' => Time.now }).count
     else
-      mongo[queue].count
+      mongo[queue].find.count
     end
   end
 
   def ready_size(queue)
     queue = namespace_queue(queue)
     if delayed_queue? queue
-      mongo[queue].find({'delay_until' => { '$lt' => Time.now }}).count
+      mongo[queue].find(delay_until: { '$lt' => Time.now }).count
     else
-      mongo[queue].count
+      mongo[queue].find.count
     end
   end
 
@@ -216,8 +214,8 @@ module Resque
   # Does the dirty work of fetching a range of items from a Redis list
   # and converting them into Ruby objects.
   def list_range(key, start = 0, count = 1, mode = :ready)
-    query = { }
-    sort = []
+    query = {}
+    sort = {}
     if delayed_queue? key
       if mode == :ready
         query['delay_until'] = { '$not' => { '$gt' => Time.new}}
@@ -225,14 +223,14 @@ module Resque
         query['delay_until'] = { '$gt' => Time.new}
       elsif mode == :delayed_sorted
         query['delay_until'] = { '$gt' => Time.new}
-        sort << ['delay_until', 1]
+        sort << { delay_until: 1 }
       elsif mode == :all_sorted
         query = {}
-        sort << ['delay_until', 1]
+        sort << { delay_until: 1 }
       end
     end
     queue = namespace_queue(key)
-    items = mongo[queue].find(query, { :limit => count, :skip => start, :sort => sort}).to_a.map{ |i| i}
+    items = mongo[queue].find(query).limit(count).skip(start).sort(sort).to_a
     count > 1 ? items : items.first
   end
 

@@ -5,7 +5,7 @@ Gem::Specification.new do |s|
   s.name        = "mongo-resque"
   s.version     = Resque::Version
   s.authors     = ["David Backeus"]
-  s.email       = ["david@streamio.se"]
+  s.email       = ["david@streamio.com"]
   s.homepage    = "https://github.com/streamio/mongo-resque"
   s.summary     = "Mongo-Resque is a mongo-backed queueing system"
   s.description = <<-description
@@ -16,7 +16,7 @@ Gem::Specification.new do |s|
     without the work of defunkt and ctrochalakis on github.
 description
 
-  s.add_dependency "mongo",      "~> 1.6.2"
+  s.add_dependency "moped",      "~> 1.3"
   s.add_dependency "vegas",      "~> 0.1.2"
   s.add_dependency "sinatra",    ">= 0.9.2"
   s.add_dependency "multi_json", "~> 1.0"

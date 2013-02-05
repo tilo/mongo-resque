@@ -97,7 +97,7 @@ module Resque
       selector = {'class' => klass.to_s}
       selector['args'] = args unless args.empty?
       destroyed = collection.find(selector).count
-      collection.remove(selector, :safe => true)
+      collection.find(selector).remove_all
       destroyed
     end
 
@@ -198,7 +198,7 @@ module Resque
     # String representation
     def inspect
       obj = @payload
-      "(Job{%s} | %s | %s)" % [ @queue, obj['class'], obj['args'].inspect ]
+      "(Job{%s} | %s | %s)" % [@queue, obj['class'], obj['args'].inspect]
     end
 
     # Equality

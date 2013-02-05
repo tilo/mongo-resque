@@ -17,7 +17,7 @@ module Resque
       end
 
       def self.count
-        Resque.mongo_failures.count
+        Resque.mongo_failures.find.count
       end
 
       def self.all(start = 0, count = 1)

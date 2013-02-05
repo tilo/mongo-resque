@@ -24,7 +24,7 @@ module Resque
     end
 
     def initialize_delayed
-      delayed_queues = mongo_stats.find_one(:stat => 'Delayed Queues')
+      delayed_queues = mongo_stats.find(stat: 'Delayed Queues').first
       @delayed_queues = delayed_queues['value'] if delayed_queues
     end
 
@@ -48,18 +48,18 @@ module Resque
     def delayed_size(queue)
       queue = namespace_queue(queue)
       if delayed_queue? queue
-        mongo[queue].find({'delay_until' => { '$gt' => Time.now }}).count
+        mongo[queue].find(delay_until: { '$gt' => Time.now }).count
       else
-        mongo[queue].count
+        mongo[queue].find.count
       end
     end
 
     def ready_size(queue)
       queue = namespace_queue(queue)
       if delayed_queue? queue
-        mongo[queue].find({'delay_until' => { '$lt' => Time.now }}).count
+        mongo[queue].find(delay_until: { '$lt' => Time.now }).count
       else
-        mongo[queue].count
+        mongo[queue].find.count
       end
     end
   end

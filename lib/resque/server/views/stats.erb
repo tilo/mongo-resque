@@ -63,7 +63,7 @@
       <th>
         <a href="<%=u "/stats/keys/#{key}" %>"><%= key %></a>
       </th>
-      <td><%= resque.mongo[key].count %></td>
+      <td><%= resque.mongo[key].find.count %></td>
     </tr>
   <% end %>
   </table>
