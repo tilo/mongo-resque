@@ -26,7 +26,7 @@ module Resque
       end
 
       def self.clear
-        Resque.mongo_failures.find.remove
+        Resque.mongo_failures.find.remove_all
       end
 
       def self.requeue(index)
