@@ -126,7 +126,7 @@ module Resque
 
       def server_environment
         return self.class.server_environment if self.class.server_environment
-        defined?(RAILS_ENV) ? RAILS_ENV : (ENV['RACK_ENV'] || 'development')
+        defined?(Rails) ? Rails.env : ENV['RAILS_ENV'] || ENV['RACK_ENV'] || 'production'
       end
     end
   end
