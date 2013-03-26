@@ -1,3 +1,9 @@
+**NOTES about this Fork:**
+
+Please do not use this fork directly, as it is work in progress
+
+
+
 Mongo-Resque
 ============
 
