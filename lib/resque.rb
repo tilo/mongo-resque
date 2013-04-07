@@ -158,7 +158,7 @@ module Resque
   # Returns nothing
   def push(queue, item)
     queue = namespace_queue(queue)
-    item[:resque_enqueue_timestamp] = Time.now
+    item[:resque_enqueue_timestamp] ||= Time.now   # allow user to override the :resque_enqueue_time
     mongo[queue].insert item
     item
   end
@@ -170,7 +170,11 @@ module Resque
     queue = namespace_queue(queue)
     query = {}
     query['delay_until'] = { '$lt' => Time.now } if delayed_queue?(queue)
-    mongo[queue].find(query).sort(_id: 1).modify({}, remove: true)
+    # Note: Sorting the queue by _id does not always provide the correct order!
+    # MongoDB _id contains a time component, but does not provide sub-second resolution. 
+    # e.g. when multiple records/jobs are created within the same second and are then ordered by _id, 
+    # they are not necessarily ordered by the insertion order! therefore we need to sort by :resque_enqueue_timestamp
+    mongo[queue].find(query).sort(resque_enqueue_timestamp: 1).modify({}, remove: true)
   end
 
   # Returns an integer representing the size of a queue.
@@ -230,7 +234,9 @@ module Resque
       end
     end
     queue = namespace_queue(key)
-    items = mongo[queue].find(query).limit(count).skip(start).sort(sort).to_a
+    # we need to make sure that the records fetched by peek() and list_range() are ordered by :resque_enqueue_timestamp, not by _id
+    # see also note in pop()
+    items = mongo[queue].find(query).sort(resque_enqueue_timestamp: 1).limit(count).skip(start).sort(sort).to_a
     count > 1 ? items : items.first
   end
 
