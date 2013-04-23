@@ -157,7 +157,7 @@ module Resque
   # Returns nothing
   def push(queue, item)
     queue = namespace_queue(queue)
-    item[:resque_enqueue_timestamp] = Time.now
+    item[:resque_enqueue_timestamp] ||= Time.now   # allow user to override the :resque_enqueue_time
     mongo[queue] << item
   end
 
@@ -169,7 +169,12 @@ module Resque
     query = {}
     query['delay_until'] = { '$lt' => Time.now } if delayed_queue?(queue)
     #sorting will result in significant performance penalties for large queues, you have been warned.
-    item = mongo[queue].find_and_modify(:query => query, :remove => true, :sort => [[:_id, :asc]])
+
+    # Note: Sorting the queue by _id does not always provide the correct order!          
+    # MongoDB _id contains a time component, but does not provide sub-second resolution.
+    # e.g. when multiple records/jobs are created within the same second and are then ordered by _id,
+    # they are not necessarily ordered by the insertion order! therefore we need to sort by :resque_enqueue_timestamp
+    item = mongo[queue].find_and_modify(:query => query, :remove => true, :sort => [[:resque_enqueue_timestamp, :asc]])
   rescue Mongo::OperationFailure => e
     return nil if e.message =~ /No matching object/
     raise e
@@ -232,6 +237,9 @@ module Resque
       end
     end
     queue = namespace_queue(key)
+    # we need to make sure that the records fetched by peek() and list_range() are ordered by :resque_enqueue_timestamp,
+    # instead by _id  --  see also note in pop()   
+    sort << ['resque_enqueue_timestamp', 1]
     items = mongo[queue].find(query, { :limit => count, :skip => start, :sort => sort}).to_a.map{ |i| i}
     count > 1 ? items : items.first
   end
